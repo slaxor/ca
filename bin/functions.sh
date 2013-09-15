@@ -22,6 +22,11 @@ mkcrl() {
 }
 
 mkcert() {
+  if [ -z ${1} ] ;
+  then
+    echo need a name for the cert
+    exit 1
+  fi
   cd ${BASEDIR}
   openssl req -config ${OPENSSL_CONF} -newkey rsa:1024 -nodes -keyout ${KEY}  -keyform PEM -out ${REQ} -outform PEM
   chmod 600 ${KEY}
@@ -31,6 +36,11 @@ mkcert() {
 }
 
 verifycert() {
+  if [ -z ${1} ] ;
+  then
+    echo need a name for the cert
+    exit 1
+  fi
   set -x
   openssl x509 -in ${CERT} -text
   openssl verify -CAfile ${CACERT} ${CERT}
@@ -41,10 +51,20 @@ verifycert() {
 }
 
 packcert() {
+  if [ -z ${1} ] ;
+  then
+    echo need a name for the cert
+    exit 1
+  fi
   tar czvf ${1}_cert.tgz ${CACERT} ${CERT} ${KEY}  ${REQ}
 }
 
 revokecert() {
+  if [ -z ${1} ] ;
+  then
+    echo need a name for the cert
+    exit 1
+  fi
   cd ${BASEDIR}
   openssl ca -config ${OPENSSL_CONF} -revoke ${CERT}
   cd -
@@ -85,3 +105,4 @@ if [ $(basename ${0}) == "functions.sh" ] ; then
 else
   $(basename $0) $*
 fi
+
