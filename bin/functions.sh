@@ -4,6 +4,9 @@ BASEDIR=$(dirname $(readlink -nf $BASH_SOURCE))/..
 CACERT=${BASEDIR}/certs/cacert.pem
 CAKEY=${BASEDIR}/keys/cakey.pem
 OPENSSL_CONF=${BASEDIR}/openssl.conf
+REQ=${BASEDIR}/newcerts/${1}_certreq.pem
+KEY=${BASEDIR}/keys/${1}_key.pem
+CERT=${BASEDIR}/certs/${1}_cert.pem
 
 mkca() {
   cd ${BASEDIR}
@@ -19,32 +22,30 @@ mkcrl() {
 }
 
 mkcert() {
-  set -x
   cd ${BASEDIR}
-  REQ=${BASEDIR}/newcerts/${1}_certreq.pem
-  KEY=${BASEDIR}/keys/${1}_key.pem
-  CERT=${BASEDIR}/certs/${1}_cert.pem
   openssl req -config ${OPENSSL_CONF} -newkey rsa:1024 -nodes -keyout ${KEY}  -keyform PEM -out ${REQ} -outform PEM
   chmod 600 ${KEY}
   openssl ca -config ${OPENSSL_CONF} -cert ${CACERT} -key ${CAKEY} -in ${REQ} -out ${CERT}
-  # cp ${BASEDIR}/newcerts/00.pem ${CERT}
-  openssl verify -config ${OPENSSL_CONF} -CAfile ${CACERT} ${CERT}
-  openssl verify -config ${OPENSSL_CONF} -CAfile ${CACERT} -verbose ${CERT}
-  openssl verify -config ${OPENSSL_CONF} -CAfile ${CACERT} -issuer_checks ${CERT}
-  openssl verify -config ${OPENSSL_CONF} -CAfile ${CACERT} -purpose sslserver ${CERT}
-  openssl verify -config ${OPENSSL_CONF} -CAfile ${CACERT} -purpose sslserver -verbose ${CERT}
   dd if=/dev/random count=2 | openssl dhparam -rand - 512 >> ${CERT}
   cd -
+}
+
+verifycert() {
+  set -x
+  openssl x509 -in ${CERT} -text
+  openssl verify -CAfile ${CACERT} ${CERT}
+  openssl verify -CAfile ${CACERT} -verbose ${CERT}
+  openssl verify -CAfile ${CACERT} -issuer_checks ${CERT}
+  openssl verify -CAfile ${CACERT} -purpose sslserver -verbose ${CERT}
   set +x
 }
 
-# generate_openssl_cnf() {
-# 
-# }
-# 
+packcert() {
+  tar czvf ${1}_cert.tgz ${CACERT} ${CERT} ${KEY}  ${REQ}
+}
+
 revokecert() {
   cd ${BASEDIR}
-  CERT=${BASEDIR}/certs/${1}_cert.pem
   openssl ca -config ${OPENSSL_CONF} -revoke ${CERT}
   cd -
 }
@@ -64,10 +65,17 @@ ResetCA() { #capitalized because its dangerous
   cd -
 }
 
+# generate_openssl_cnf() {
+#
+# }
+#
+
 setup() {
   ln -nsf $(readlink -nf $BASH_SOURCE) ${BASEDIR}/bin/mkca
   ln -nsf $(readlink -nf $BASH_SOURCE) ${BASEDIR}/bin/mkcrl
   ln -nsf $(readlink -nf $BASH_SOURCE) ${BASEDIR}/bin/mkcert
+  ln -nsf $(readlink -nf $BASH_SOURCE) ${BASEDIR}/bin/verifycert
+  ln -nsf $(readlink -nf $BASH_SOURCE) ${BASEDIR}/bin/packcert
   ln -nsf $(readlink -nf $BASH_SOURCE) ${BASEDIR}/bin/revokecert
   ln -nsf $(readlink -nf $BASH_SOURCE) ${BASEDIR}/bin/ResetCA
 }
